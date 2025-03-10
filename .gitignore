@@ -1,0 +1,95 @@
+# Build and IDE Files
+bin/
+obj/
+*.suo
+*.user
+*.userosscache
+*.sln.ide
+*.sln.docstates
+.vscode/
+.ionide/
+
+# .NET Core Dependency Files
+project.lock.json
+project.assets.json
+artifacts/
+*.nupkg
+*.snupkg
+*.psess
+*.pidb
+
+# Entity Framework Migrations & Logs
+Migrations/
+*.bak
+*.log
+*.ldb
+*.sqlite
+
+# ASP.NET Environment Configurations
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+secrets.json
+
+# User Secrets (ASP.NET Core)
+!appsettings.json  # Keep the template file, ignore environment-specific ones
+**/secrets.json
+/.vs/
+.vs/
+
+# Rider IDE
+.idea/
+
+# Logs and Temp Files
+*.log
+logs/
+**/*.log
+**/*.tlog
+temp/
+tmp/
+wwwroot/node_modules/
+
+# Node.js Dependencies (if using frontend frameworks)
+node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
+
+# Docker & Deployment
+Dockerfile
+docker-compose.override.yml
+docker-compose.*
+.env
+*.dockerfile
+
+# JetBrains Rider & Resharper
+*.DotSettings.user
+.idea/
+*.sln.DotSettings
+
+# NuGet Packages
+*.nupkg
+packages/
+*.nuget.props
+.nuget/
+
+# Publish Outputs
+.publish/
+*.publishsettings
+*.pfx
+*.key
+
+# Debugging & Cache Files
+*.swp
+*.swo
+*.bak
+Thumbs.db
+*.log
+*.pyc
+*.class
+*.db
+*.DS_Store
+*.tar.gz
+*.zip
+*.7z
+
