@@ -4,7 +4,7 @@ using ModelLayer.Model;
 namespace AddressBook.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/addressbook")]
     public class AddressBookController : ControllerBase
     {
         private static List<ResponseAddressBook> _contacts = new List<ResponseAddressBook>();
@@ -14,26 +14,29 @@ namespace AddressBook.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<ResponseAddressBook>> GetAllContacts()
         {
-            return Ok(_contacts);
+            if (_contacts.Count == 0)
+                return NotFound(new { message = "No contacts found" });
+
+            return Ok(new { message = "Contacts retrieved successfully", data = _contacts });
         }
 
         // GET: Fetch contact by ID
-        [HttpGet("{id}")]
+        [HttpGet("get/{id}")]
         public ActionResult<ResponseAddressBook> GetContactById(int id)
         {
             var contact = _contacts.Find(c => c.Id == id);
             if (contact == null)
-                return NotFound(new { message = "Contact Not Found" });
+                return NotFound(new { message = $"Contact with ID {id} not found" });
 
-            return Ok(contact);
+            return Ok(new { message = "Contact retrieved successfully", data = contact });
         }
 
         // POST: Add new contact
-        [HttpPost]
+        [HttpPost("add")]
         public ActionResult<ResponseAddressBook> AddContact([FromBody] RequestAddressBook request)
         {
             if (request == null)
-                return BadRequest(new { message = "Invalid Request Data" });
+                return BadRequest(new { message = "Invalid request data" });
 
             var newContact = new ResponseAddressBook
             {
@@ -45,35 +48,36 @@ namespace AddressBook.Controllers
             };
 
             _contacts.Add(newContact);
-            return CreatedAtAction(nameof(GetContactById), new { id = newContact.Id }, newContact);
+            return CreatedAtAction(nameof(GetContactById), new { id = newContact.Id },
+                new { message = "Contact added successfully", data = newContact });
         }
 
         // PUT: Update contact
-        [HttpPut("{id}")]
+        [HttpPut("update/{id}")]
         public ActionResult<ResponseAddressBook> UpdateContact(int id, [FromBody] RequestAddressBook request)
         {
             var contact = _contacts.Find(c => c.Id == id);
             if (contact == null)
-                return NotFound(new { message = "Contact Not Found" });
+                return NotFound(new { message = $"Contact with ID {id} not found" });
 
             contact.Name = request.Name;
             contact.PhoneNumber = request.PhoneNumber;
             contact.Email = request.Email;
             contact.Address = request.Address;
 
-            return Ok(contact);
+            return Ok(new { message = "Contact updated successfully", data = contact });
         }
 
         // DELETE: Delete contact
-        [HttpDelete("{id}")]
+        [HttpDelete("delete/{id}")]
         public ActionResult DeleteContact(int id)
         {
             var contact = _contacts.Find(c => c.Id == id);
             if (contact == null)
-                return NotFound(new { message = "Contact Not Found" });
+                return NotFound(new { message = $"Contact with ID {id} not found" });
 
             _contacts.Remove(contact);
-            return NoContent();
+            return Ok(new { message = "Contact deleted successfully" });
         }
     }
 }
