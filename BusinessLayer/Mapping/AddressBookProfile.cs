@@ -13,7 +13,7 @@ namespace BusinessLayer.Mapping
     {
         public AddressBookProfile()
         {
-
+            
             CreateMap<RequestAddressBook, AddressBookEntry>();
             CreateMap<AddressBookEntry, ResponseAddressBook>();
         }
