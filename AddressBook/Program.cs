@@ -1,10 +1,12 @@
-using BusinessLayer.Interface;
+﻿using BusinessLayer.Interface;
 using BusinessLayer.Mapping;
 using BusinessLayer.Service;
 using BusinessLayer.Validator;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Middleware.Authenticator;
@@ -17,11 +19,11 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database Connection
+// ✅ Database Connection
 var connectionString = builder.Configuration.GetConnectionString("SqlConnection");
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 
-// Register Services and Repositories
+// ✅ Register Services and Repositories
 builder.Services.AddScoped<IAddressBookBL, AddressBookBL>();
 builder.Services.AddScoped<IAddressBookRL, AddressBookRL>();
 
@@ -32,8 +34,24 @@ builder.Services.AddScoped<IUserBL, UserBL>();
 builder.Services.AddScoped<IUserRL, UserRL>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ICacheService, CacheService>(); // ✅ Use Custom Cache Service
 
-// Configure JWT Authentication
+// ✅ Configure Redis (Improved Configuration)
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+    options.InstanceName = builder.Configuration["Redis:InstanceName"];
+});
+
+// ✅ Session Management (Fix: Add UseSession Middleware)
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// ✅ Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSettings["Key"];
 
@@ -60,21 +78,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
-builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();   
+// ✅ FluentValidation Configuration
+builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
 builder.Services.AddScoped<IValidator<RequestAddressBook>, RequestAddressBookValidator>();
-// Add services to the container.
 
+// ✅ Add Controllers & Swagger
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
-
 var app = builder.Build();
 
-// Ensure Swagger is available in development
+// ✅ Ensure Swagger is available in development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -83,17 +98,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ? Enable Authentication and Authorization before routing
+// ✅ Fix Middleware Order
+app.UseRouting(); // 🔹 Place routing before authentication
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseRouting(); // ? Now use routing after authentication
+app.UseSession(); // ✅ Missing in original file
 
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapControllers(); // Ensure controllers are mapped properly
+    endpoints.MapControllers(); // ✅ Ensure controllers are mapped properly
 });
-
-app.MapControllers();
 
 app.Run();
