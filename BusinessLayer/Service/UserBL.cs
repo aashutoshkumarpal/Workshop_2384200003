@@ -2,6 +2,7 @@
 using BusinessLayer.Interface;
 using Middleware.Authenticator;
 using Middleware.Email;
+using Middleware.RabbitMQ;
 using Middleware.Salting;
 using ModelLayer.Model;
 using RepositoryLayer.Entity;
@@ -22,13 +23,14 @@ namespace BusinessLayer.Service
         private readonly JwtTokenService _jwtTokenService;
         private readonly IMapper _mapper;
         private readonly EmailService _emailService;
-
-        public UserBL(IUserRL userRepository, JwtTokenService jwtTokenService, IMapper mapper, EmailService emailService)
+        private readonly RabbitMqService _rabbitMqPublisher;
+        public UserBL(IUserRL userRepository, JwtTokenService jwtTokenService, IMapper mapper, EmailService emailService , RabbitMqService rabbitMqPublisher)
         {
             _userRepository = userRepository;
             _jwtTokenService = jwtTokenService;
             _mapper = mapper;
             _emailService = emailService;
+            _rabbitMqPublisher = rabbitMqPublisher;
         }
 
         public bool RegisterUser(RegisterUserDTO request)
@@ -45,6 +47,11 @@ namespace BusinessLayer.Service
                 user.PasswordHash = PasswordHelper.HashPassword(request.Password);
 
                 _userRepository.AddUser(user);
+
+                // Publish event to RabbitMQ
+                string message = $"User Registered: {user.Email}";
+                _rabbitMqPublisher.PublishMessage(message);
+
                 return true;
             }
             catch (Exception ex)

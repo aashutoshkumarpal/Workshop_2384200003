@@ -2,6 +2,7 @@ using AutoMapper;
 using BusinessLayer.Interface;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Middleware.RabbitMQ;
 using ModelLayer.Model;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,11 +15,13 @@ namespace AddressBook.Controllers
     {
         private readonly IAddressBookBL _addressBookBL;
         private readonly IValidator<RequestAddressBook> _validator;
+        private readonly RabbitMqService _rabbitMqService;
 
-        public AddressBookController(IAddressBookBL addressBookBL, IValidator<RequestAddressBook> validator)
+        public AddressBookController(IAddressBookBL addressBookBL,IValidator<RequestAddressBook> validator,RabbitMqService rabbitMqService)
         {
             _addressBookBL = addressBookBL;
             _validator = validator;
+            _rabbitMqService = rabbitMqService;
         }
 
         // GET: Fetch all contacts
@@ -57,7 +60,7 @@ namespace AddressBook.Controllers
             });
         }
 
-        // POST: Add new contact
+        // POST: Add new contact (Sends a message to RabbitMQ)
         [HttpPost("add")]
         public ActionResult<ResponseBody<ResponseAddressBook>> AddContact([FromBody] RequestAddressBook dto)
         {
@@ -73,6 +76,10 @@ namespace AddressBook.Controllers
             }
 
             var newContact = _addressBookBL.AddContact(dto);
+
+            // Send message to RabbitMQ
+            _rabbitMqService.PublishMessage($"New contact added: {newContact.Name}, {newContact.Email}, {newContact.PhoneNumber}");
+
             return CreatedAtAction(nameof(GetContactById), new { id = newContact.Id }, new ResponseBody<ResponseAddressBook>
             {
                 Success = true,

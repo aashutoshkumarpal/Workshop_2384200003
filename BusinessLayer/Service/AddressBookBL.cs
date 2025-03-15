@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using NLog;
+using Middleware.RabbitMQ;
 
 namespace BusinessLayer.Service
 {
@@ -17,12 +18,15 @@ namespace BusinessLayer.Service
         private readonly IMapper _mapper;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private const string CacheKey = "AllContacts";
+        private readonly RabbitMqService _rabbitMqPublisher;
 
-        public AddressBookBL(IAddressBookRL addressBookRL, ICacheService cacheService, IMapper mapper)
+        public AddressBookBL(IAddressBookRL addressBookRL, ICacheService cacheService, IMapper mapper , RabbitMqService rabbitMqPublisher)
         {
             _addressBookRL = addressBookRL ?? throw new ArgumentNullException(nameof(addressBookRL));
             _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _rabbitMqPublisher = rabbitMqPublisher;
+
         }
 
         public IEnumerable<ResponseAddressBook> GetAllContacts()
@@ -33,7 +37,7 @@ namespace BusinessLayer.Service
                 var cacheData = _cacheService.GetCache(CacheKey);
                 if (!string.IsNullOrEmpty(cacheData))
                 {
-                    Console.WriteLine("Cache Hit! Returning from Cache.");
+                   // Console.WriteLine("Cache Hit! Returning from Cache.");
                     return JsonSerializer.Deserialize<IEnumerable<ResponseAddressBook>>(cacheData);
                 }
 
@@ -80,6 +84,11 @@ namespace BusinessLayer.Service
                 var newContact = _addressBookRL.AddContact(entity);
 
                 _cacheService.RemoveCache(CacheKey); // Invalidate cache
+
+                // Publish event to RabbitMQ
+                string message = $"New Contact Added: {contact.Name} - {contact.Email}";
+                _rabbitMqPublisher.PublishMessage(message);
+
 
                 return _mapper.Map<ResponseAddressBook>(newContact);
             }

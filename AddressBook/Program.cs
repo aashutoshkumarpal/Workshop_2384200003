@@ -5,12 +5,12 @@ using BusinessLayer.Validator;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Caching.Distributed;
 using StackExchange.Redis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Middleware.Authenticator;
 using Middleware.Email;
+using Middleware.RabbitMQ;
 using ModelLayer.Model;
 using RepositoryLayer.Context;
 using RepositoryLayer.Interface;
@@ -36,14 +36,28 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<ICacheService, CacheService>(); // ✅ Use Custom Cache Service
 
-// ✅ Configure Redis (Improved Configuration)
+// ✅ Register RabbitMQ
+builder.Services.AddSingleton<RabbitMqService>();
+builder.Services.AddSingleton<RabbitMqConsumer>(); // ✅ Ensure Consumer is Registered
+builder.Services.AddHostedService<RabbitMqBackgroundService>(); // ✅ Run Consumer as Background Service
+
+// ✅ Configure Redis
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration["Redis:ConnectionString"];
     options.InstanceName = builder.Configuration["Redis:InstanceName"];
 });
 
-// ✅ Session Management (Fix: Add UseSession Middleware)
+// ✅ Configure CORS (Fix: Allow Frontend Integration)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAllOrigins",
+        policy => policy.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
+});
+
+// ✅ Session Management
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -98,16 +112,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ✅ Fix Middleware Order
-app.UseRouting(); // 🔹 Place routing before authentication
+app.UseRouting();
+
+app.UseCors("AllowAllOrigins"); // ✅ Fix: Enable CORS
+
+app.UseSession(); // ✅ Fix: Move session middleware before authentication
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseSession(); // ✅ Missing in original file
-
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapControllers(); // ✅ Ensure controllers are mapped properly
+    endpoints.MapControllers();
 });
 
 app.Run();
