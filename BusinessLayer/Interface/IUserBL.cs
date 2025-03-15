@@ -11,5 +11,7 @@ namespace BusinessLayer.Interface
     {
         bool RegisterUser(RegisterUserDTO request);
         string? LoginUser(LoginUserDTO request);
+        bool ForgotPassword(string email);
+        bool ResetPassword(string token, string newPassword);
     }
 }

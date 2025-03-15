@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Middleware.Authenticator;
+using Middleware.Email;
 using ModelLayer.Model;
 using RepositoryLayer.Context;
 using RepositoryLayer.Interface;
@@ -30,6 +31,7 @@ builder.Services.AddAutoMapper(typeof(UserMapper));
 builder.Services.AddScoped<IUserBL, UserBL>();
 builder.Services.AddScoped<IUserRL, UserRL>();
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<EmailService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -68,9 +70,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Ensure Swagger is available in development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -79,7 +83,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// ? Enable Authentication and Authorization before routing
+app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseRouting(); // ? Now use routing after authentication
+
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers(); // Ensure controllers are mapped properly
+});
 
 app.MapControllers();
 
