@@ -1,7 +1,8 @@
-using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using NLog;
 using BusinessLayer.Interface;
 using FluentValidation;
-using Microsoft.AspNetCore.Mvc;
 using Middleware.RabbitMQ;
 using ModelLayer.Model;
 using System.Collections.Generic;
@@ -20,6 +21,7 @@ namespace AddressBook.Controllers
         private readonly IAddressBookBL _addressBookBL;
         private readonly IValidator<RequestAddressBook> _validator;
         private readonly RabbitMqService _rabbitMqService;
+        private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
         /// Initializes a new instance of the AddressBookController.
@@ -42,6 +44,7 @@ namespace AddressBook.Controllers
         [HttpGet]
         public ActionResult<ResponseBody<IEnumerable<ResponseAddressBook>>> GetAllContacts()
         {
+            _logger.Info("Fetching all contacts.");
             var contacts = _addressBookBL.GetAllContacts();
             return Ok(new ResponseBody<IEnumerable<ResponseAddressBook>>
             {
@@ -59,9 +62,11 @@ namespace AddressBook.Controllers
         [HttpGet("get/{id}")]
         public ActionResult<ResponseBody<ResponseAddressBook>> GetContactById(int id)
         {
+            _logger.Info($"Fetching contact with ID {id}");
             var contact = _addressBookBL.GetContactById(id);
             if (contact == null)
             {
+                _logger.Warn($"Contact with ID {id} not found.");
                 return NotFound(new ResponseBody<ResponseAddressBook>
                 {
                     Success = false,
@@ -87,10 +92,12 @@ namespace AddressBook.Controllers
         [HttpPost("add")]
         public ActionResult<ResponseBody<ResponseAddressBook>> AddContact([FromBody] RequestAddressBook dto)
         {
-            // Validate input data using FluentValidation
+            _logger.Info($"Adding a new contact: {dto.Name}");
+
             var validationResult = _validator.Validate(dto);
             if (!validationResult.IsValid)
             {
+                _logger.Warn("Validation failed while adding a contact.");
                 return BadRequest(new ResponseBody<object>
                 {
                     Success = false,
@@ -99,12 +106,10 @@ namespace AddressBook.Controllers
                 });
             }
 
-            // Add contact using business layer
             var newContact = _addressBookBL.AddContact(dto);
+            _rabbitMqService.PublishMessage($"New contact added: {newContact.Name}, {newContact.Email}");
 
-            // Publish an event to RabbitMQ about the new contact
-            _rabbitMqService.PublishMessage($"New contact added: {newContact.Name}, {newContact.Email}, {newContact.PhoneNumber}");
-
+            _logger.Info($"Contact {newContact.Id} added successfully.");
             return CreatedAtAction(nameof(GetContactById), new { id = newContact.Id }, new ResponseBody<ResponseAddressBook>
             {
                 Success = true,
@@ -123,10 +128,12 @@ namespace AddressBook.Controllers
         [HttpPut("update/{id}")]
         public ActionResult<ResponseBody<ResponseAddressBook>> UpdateContact(int id, [FromBody] RequestAddressBook dto)
         {
-            // Validate input data
+            _logger.Info($"Updating contact with ID {id}");
+
             var validationResult = _validator.Validate(dto);
             if (!validationResult.IsValid)
             {
+                _logger.Warn($"Validation failed for contact update (ID {id}).");
                 return BadRequest(new ResponseBody<object>
                 {
                     Success = false,
@@ -135,10 +142,10 @@ namespace AddressBook.Controllers
                 });
             }
 
-            // Update contact via business layer
             var updatedContact = _addressBookBL.UpdateContact(id, dto);
             if (updatedContact == null)
             {
+                _logger.Warn($"Contact with ID {id} not found for update.");
                 return NotFound(new ResponseBody<ResponseAddressBook>
                 {
                     Success = false,
@@ -147,6 +154,7 @@ namespace AddressBook.Controllers
                 });
             }
 
+            _logger.Info($"Contact with ID {id} updated successfully.");
             return Ok(new ResponseBody<ResponseAddressBook>
             {
                 Success = true,
@@ -163,9 +171,11 @@ namespace AddressBook.Controllers
         [HttpDelete("delete/{id}")]
         public ActionResult<ResponseBody<string>> DeleteContact(int id)
         {
+            _logger.Info($"Attempting to delete contact with ID {id}");
             var isDeleted = _addressBookBL.DeleteContact(id);
             if (!isDeleted)
             {
+                _logger.Warn($"Contact with ID {id} not found.");
                 return NotFound(new ResponseBody<string>
                 {
                     Success = false,
@@ -174,6 +184,7 @@ namespace AddressBook.Controllers
                 });
             }
 
+            _logger.Info($"Contact with ID {id} deleted successfully.");
             return Ok(new ResponseBody<string>
             {
                 Success = true,
