@@ -5,6 +5,9 @@ using ModelLayer.Model;
 
 namespace AddressBook.Controllers
 {
+    /// <summary>
+    /// API Controller for User Authentication.
+    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
@@ -16,6 +19,11 @@ namespace AddressBook.Controllers
             _userService = userService;
         }
 
+        /// <summary>
+        /// Registers a new user if the email does not already exist.
+        /// </summary>
+        /// <param name="request">User registration details (email, password, etc.).</param>
+        /// <returns>Success message if registered, otherwise an error message.</returns>
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterUserDTO request)
         {
@@ -26,6 +34,11 @@ namespace AddressBook.Controllers
             return Ok(new ResponseBody<string> { Success = true, Message = "User registered successfully." });
         }
 
+        /// <summary>
+        /// Authenticates the user and returns a JWT token if credentials are valid.
+        /// </summary>
+        /// <param name="request">User login credentials (email & password).</param>
+        /// <returns>JWT token upon successful login.</returns>
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginUserDTO request)
         {
@@ -36,6 +49,11 @@ namespace AddressBook.Controllers
             return Ok(new ResponseBody<string> { Success = true, Message = "Login successful.", Data = token });
         }
 
+        /// <summary>
+        /// Sends a password reset email if the provided email exists.
+        /// </summary>
+        /// <param name="request">User's email for password reset.</param>
+        /// <returns>Success message if email exists, otherwise an error.</returns>
         [HttpPost("forgot-password")]
         public IActionResult ForgotPassword([FromBody] ForgotPasswordDTO request)
         {
@@ -46,6 +64,11 @@ namespace AddressBook.Controllers
             return Ok(new ResponseBody<string> { Success = true, Message = "Reset password email sent successfully." });
         }
 
+        /// <summary>
+        /// Serves an HTML password reset form when accessed with a valid token.
+        /// </summary>
+        /// <param name="token">JWT token for password reset.</param>
+        /// <returns>HTML form for password reset.</returns>
         [HttpGet("reset-password")]
         public ContentResult ResetPasswordForm([FromQuery] string token)
         {
@@ -67,6 +90,11 @@ namespace AddressBook.Controllers
             return new ContentResult { Content = htmlForm, ContentType = "text/html" };
         }
 
+        /// <summary>
+        /// Resets the user's password using the provided token and new password.
+        /// </summary>
+        /// <param name="request">Token and new password details.</param>
+        /// <returns>Success message if reset is successful, otherwise an error.</returns>
         [HttpPost("reset-password")]
         public IActionResult ResetPassword([FromBody] ResetPasswordDTO request)
         {
@@ -80,6 +108,12 @@ namespace AddressBook.Controllers
             return Ok(new ResponseBody<string> { Success = true, Message = "Password reset successfully." });
         }
 
+        /// <summary>
+        /// Handles password reset requests submitted via the HTML form.
+        /// </summary>
+        /// <param name="token">JWT token for password reset.</param>
+        /// <param name="newPassword">New password to set.</param>
+        /// <returns>Success message if reset is successful, otherwise an error.</returns>
         [HttpPost("reset-password-form")]
         public IActionResult ResetPasswordForm([FromForm] string token, [FromForm] string newPassword)
         {

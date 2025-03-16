@@ -23,4 +23,9 @@
     <ProjectReference Include="..\RepositoryLayer\RepositoryLayer.csproj" />
   </ItemGroup>
 
+<PropertyGroup>
+  <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  <NoWarn>1591</NoWarn>
+</PropertyGroup>
+
 </Project>

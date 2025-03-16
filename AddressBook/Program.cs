@@ -15,7 +15,9 @@ using ModelLayer.Model;
 using RepositoryLayer.Context;
 using RepositoryLayer.Interface;
 using RepositoryLayer.Service;
+using System.Reflection;
 using System.Text;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,20 +28,20 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 // ✅ Register Services and Repositories
 builder.Services.AddScoped<IAddressBookBL, AddressBookBL>();
 builder.Services.AddScoped<IAddressBookRL, AddressBookRL>();
-
-builder.Services.AddAutoMapper(typeof(AddressBookProfile));
-builder.Services.AddAutoMapper(typeof(UserMapper));
-
 builder.Services.AddScoped<IUserBL, UserBL>();
 builder.Services.AddScoped<IUserRL, UserRL>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<EmailService>();
-builder.Services.AddScoped<ICacheService, CacheService>(); // ✅ Use Custom Cache Service
+builder.Services.AddScoped<ICacheService, CacheService>();
 
-// ✅ Register RabbitMQ
+// ✅ AutoMapper Profiles
+builder.Services.AddAutoMapper(typeof(AddressBookProfile));
+builder.Services.AddAutoMapper(typeof(UserMapper));
+
+// ✅ RabbitMQ Services
 builder.Services.AddSingleton<RabbitMqService>();
-builder.Services.AddSingleton<RabbitMqConsumer>(); // ✅ Ensure Consumer is Registered
-builder.Services.AddHostedService<RabbitMqBackgroundService>(); // ✅ Run Consumer as Background Service
+builder.Services.AddSingleton<RabbitMqConsumer>();
+builder.Services.AddHostedService<RabbitMqBackgroundService>();
 
 // ✅ Configure Redis
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -48,7 +50,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = builder.Configuration["Redis:InstanceName"];
 });
 
-// ✅ Configure CORS (Fix: Allow Frontend Integration)
+// ✅ CORS Configuration
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins",
@@ -99,25 +101,67 @@ builder.Services.AddScoped<IValidator<RequestAddressBook>, RequestAddressBookVal
 // ✅ Add Controllers & Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// ✅ Swagger Configuration
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Address Book API",
+        Version = "v1",
+        Description = "An API for managing address book contacts with authentication and RabbitMQ integration",
+        Contact = new OpenApiContact
+        {
+            Name = "Aashutosh Kumar Pal",
+            Email = "aashutoshkumarpal02@gmail.com"
+        }
+    });
+
+    // ✅ Enable JWT Authentication in Swagger UI
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Enter 'Bearer {token}'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    // ✅ Add XML Comments for API Documentation
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+
+});
+
 
 var app = builder.Build();
 
-// ✅ Ensure Swagger is available in development
-if (app.Environment.IsDevelopment())
+// ✅ Ensure Swagger is available in development & production (Optional)
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
-
 app.UseRouting();
-
-app.UseCors("AllowAllOrigins"); // ✅ Fix: Enable CORS
-
-app.UseSession(); // ✅ Fix: Move session middleware before authentication
-
+app.UseCors("AllowAllOrigins");
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
